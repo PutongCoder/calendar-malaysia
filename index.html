@@ -4,64 +4,62 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Malaysia Calendar 2026</title>
-  <meta name="description" content="Malaysia 2026 calendar with state filters, public holidays, and ICS export." />
-  <link rel="preload" href="styles.css" as="style" />
+  <meta name="description" content="Malaysia 2026 calendar with state holidays, printable view, ICS export, and a trip planner for cheap flights and hotel ideas." />
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="data:,">
 </head>
 <body>
-  <header class="site-header">
-    <h1>Malaysia Calendar <span>2026</span></h1>
+  <header class="site-header container">
+    <div class="branding">
+      <h1>Malaysia Calendar <span>2026</span></h1>
+      <button id="themeToggle" class="btn btn-ghost" aria-label="Toggle theme">🌙</button>
+    </div>
+
     <div class="controls">
-      <label>
-        State:
+      <label class="control">
+        <span>State</span>
         <select id="stateSelect" aria-label="Select state">
           <option value="MY">All Malaysia</option>
-          <option value="JHR">Johor</option>
-          <option value="KDH">Kedah</option>
-          <option value="KTN">Kelantan</option>
-          <option value="MLK">Melaka</option>
-          <option value="NSN">Negeri Sembilan</option>
-          <option value="PHG">Pahang</option>
-          <option value="PLS">Perlis</option>
-          <option value="PRK">Perak</option>
-          <option value="PNG">Penang</option>
-          <option value="SBH">Sabah</option>
-          <option value="SWK">Sarawak</option>
-          <option value="SGR">Selangor</option>
-          <option value="TRG">Terengganu</option>
-          <option value="KUL">Kuala Lumpur (FT)</option>
-          <option value="LBN">Labuan (FT)</option>
-          <option value="PJY">Putrajaya (FT)</option>
+          <option value="JHR">Johor</option><option value="KDH">Kedah</option><option value="KTN">Kelantan</option>
+          <option value="MLK">Melaka</option><option value="NSN">Negeri Sembilan</option><option value="PHG">Pahang</option>
+          <option value="PLS">Perlis</option><option value="PRK">Perak</option><option value="PNG">Penang</option>
+          <option value="SBH">Sabah</option><option value="SWK">Sarawak</option><option value="SGR">Selangor</option>
+          <option value="TRG">Terengganu</option><option value="KUL">Kuala Lumpur (FT)</option>
+          <option value="LBN">Labuan (FT)</option><option value="PJY">Putrajaya (FT)</option>
         </select>
       </label>
 
-      <button id="todayBtn" type="button" class="ghost">Jump to current month</button>
-      <button id="icsBtn" type="button">Download .ics (holidays)</button>
+      <button id="todayBtn" type="button" class="btn btn-ghost">Jump to current month</button>
+      <button id="icsBtn" type="button" class="btn">Download .ics (holidays)</button>
+      <button id="plannerBtn" type="button" class="btn btn-primary">Open Trip Planner</button>
     </div>
+
     <p class="disclaimer">
-      Heads-up: Islamic and some state holidays are confirmed close to the date. Load final dates into the JSON and everything updates automatically.
+      Heads-up: Islamic and some state holidays confirm close to the date. Update the JSON and the calendar refreshes automatically.
     </p>
   </header>
 
-  <main id="calendar" class="calendar" aria-live="polite"></main>
+  <main class="container">
+    <section id="calendar" class="calendar" aria-live="polite"></section>
+  </main>
 
-  <footer class="site-footer">
-    <div>
-      <button id="printBtn" type="button" class="ghost">Print / Save as PDF</button>
+  <footer class="site-footer container">
+    <div class="left">
+      <button id="printBtn" type="button" class="btn btn-ghost">Print / Save as PDF</button>
     </div>
-    <small>© 2026 • Built for fast sharing. No cookies, no trackers.</small>
+    <small>© 2026 • Fast, accessible, privacy-friendly.</small>
   </footer>
 
+  <!-- Month/Day templates -->
   <template id="monthTemplate">
     <section class="month" aria-label="">
       <header class="month-header">
         <h2></h2>
       </header>
-      <div class="grid grid--dow" aria-hidden="true">
+      <div class="dow">
         <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
       </div>
-      <div class="grid grid--days"></div>
+      <div class="grid grid-days"></div>
     </section>
   </template>
 
@@ -72,9 +70,76 @@
     </button>
   </template>
 
-  <template id="badgeTemplate">
-    <li class="badge"></li>
-  </template>
+  <template id="badgeTemplate"><li class="badge"></li></template>
+
+  <!-- Trip Planner Drawer -->
+  <aside id="planner" class="planner" aria-hidden="true">
+    <div class="planner__panel">
+      <div class="planner__header">
+        <h3>Trip Planner</h3>
+        <button id="plannerClose" class="btn btn-ghost" aria-label="Close">✕</button>
+      </div>
+
+      <form id="plannerForm" class="planner__form">
+        <div class="field">
+          <label>Origin airport/city</label>
+          <input id="origin" type="text" placeholder="Kuala Lumpur / KUL" required />
+        </div>
+        <div class="field">
+          <label>Destination (optional)</label>
+          <input id="destination" type="text" placeholder="Anywhere / Bali / PEN / TYO…" />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Depart</label>
+            <input id="depart" type="date" required />
+          </div>
+          <div class="field">
+            <label>Return</label>
+            <input id="return" type="date" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Currency</label>
+            <select id="currency">
+              <option>MYR</option><option>USD</option><option>SGD</option><option>EUR</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Adults</label>
+            <input id="adults" type="number" min="1" value="1" />
+          </div>
+        </div>
+
+        <details class="field">
+          <summary>API keys (store locally)</summary>
+          <div class="api-grid">
+            <label>Kiwi Tequila API Key
+              <input id="kiwiKey" type="password" placeholder="tequila key (optional but needed for flights)" />
+            </label>
+            <label>OpenTripMap API Key
+              <input id="otmKey" type="password" placeholder="opentripmap key (optional)" />
+            </label>
+          </div>
+          <p class="muted">Keys are saved to localStorage in your browser, not sent to our server.</p>
+        </details>
+
+        <button class="btn btn-primary" type="submit">Search trips</button>
+      </form>
+
+      <div id="results" class="planner__results">
+        <div class="results__col">
+          <h4>Cheapest Flights</h4>
+          <ul id="flightList" class="list"></ul>
+        </div>
+        <div class="results__col">
+          <h4>Suggested Places & Hotels</h4>
+          <ul id="placeList" class="list"></ul>
+        </div>
+      </div>
+    </div>
+  </aside>
 
   <script defer src="app.js"></script>
 </body>
