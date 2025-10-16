@@ -9,6 +9,13 @@ const fmtCurrency = (v, c="MYR") => new Intl.NumberFormat("en-MY", { style: "cur
 function parseYMD(ymd){ const [y,m,d] = ymd.split("-").map(Number); return new Date(y, m-1, d); }
 const fmtIcsDate = (d) => [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("");
 
+/* Weekend map: Fri–Sat states vs Sat–Sun */
+const WEEKENDS = {
+  DEFAULT: ["SAT","SUN"],
+  ALT: ["FRI","SAT"], // Johor, Kedah, Kelantan, Terengganu
+  ALT_STATES: new Set(["JHR","KDH","KTN","TRG"]),
+};
+
 let holidays = [];
 let stateFilter = "MY";
 
@@ -23,6 +30,9 @@ const elIcs = document.getElementById("icsBtn");
 const elToday = document.getElementById("todayBtn");
 const elPrint = document.getElementById("printBtn");
 const elTheme = document.getElementById("themeToggle");
+
+/* Long weekends */
+const lwList = document.getElementById("lwList");
 
 /* Planner DOM */
 const drawer = document.getElementById("planner");
@@ -42,11 +52,12 @@ async function init(){
     holidays = await res.json();
   }catch(e){ console.warn("Failed to load holidays", e); holidays = []; }
   renderYear(THIS_YEAR);
+  renderLongWeekends(); // initial compute
 }
 
 /* Events */
 function attachEvents(){
-  elState.addEventListener("change", e => { stateFilter = e.target.value; renderYear(THIS_YEAR); });
+  elState.addEventListener("change", e => { stateFilter = e.target.value; renderYear(THIS_YEAR); renderLongWeekends(); });
   elIcs.addEventListener("click", downloadICS);
   elPrint.addEventListener("click", () => window.print());
   elToday.addEventListener("click", () => {
@@ -58,12 +69,9 @@ function attachEvents(){
   });
 
   elTheme.addEventListener("click", toggleTheme);
-
-  // Planner open/close
   openPlannerBtn.addEventListener("click", () => drawer.setAttribute("aria-hidden","false"));
   closePlannerBtn.addEventListener("click", () => drawer.setAttribute("aria-hidden","true"));
 
-  // Planner submit
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     persistKeys();
@@ -172,9 +180,141 @@ function downloadICS(){
 }
 function escapeICS(s){ return String(s).replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n"); }
 
+/* ---------------- Long Weekend detection ---------------- */
+function isWeekend(d, state){
+  const day = ["SUN","MON","TUE","WED","THU","FRI","SAT"][d.getDay()];
+  const weekend = WEEKENDS.ALT_STATES.has(state) ? WEEKENDS.ALT : WEEKENDS.DEFAULT;
+  return weekend.includes(day);
+}
+function isHoliday(d, state){
+  const ymd = d.toISOString().slice(0,10);
+  return holidays.some(h => h.date===ymd && (h.regions.includes("MY") || h.regions.includes(state)));
+}
+function isOffDay(d, state){ return isWeekend(d, state) || isHoliday(d, state); }
+
+function renderLongWeekends(){
+  const state = stateFilter;
+  const ranges = findLongWeekends(state);
+  const frag = document.createDocumentFragment();
+
+  if(!ranges.length){
+    const li = document.createElement("li");
+    li.className = "lw-item";
+    li.innerHTML = `<div>No long weekends detected yet for selected state.</div>`;
+    lwList.innerHTML = ""; lwList.appendChild(li);
+    return;
+  }
+
+  ranges.forEach(r => {
+    const li = document.createElement("li");
+    li.className = "lw-item";
+    li.innerHTML = `
+      <div>
+        <strong>${fmtRange(r.start, r.end)}</strong>
+        <span class="meta"> • ${r.length} days off</span>
+        ${r.reason ? `<span class="meta"> • ${r.reason}</span>` : ""}
+      </div>
+      <div>
+        <span class="tag">${r.length - r.workdays} hols</span>
+        <button class="btn btn-primary">Plan this trip</button>
+      </div>
+    `;
+    li.querySelector("button").addEventListener("click", () => {
+      // Prefill: depart morning of start, return evening of end
+      document.getElementById("depart").value = r.start.toISOString().slice(0,10);
+      document.getElementById("return").value = r.end.toISOString().slice(0,10);
+      drawer.setAttribute("aria-hidden","false");
+      // Scroll drawer into view on mobile
+      setTimeout(()=>drawer.querySelector("#origin")?.focus(), 50);
+    });
+    frag.appendChild(li);
+  });
+
+  lwList.innerHTML = ""; lwList.appendChild(frag);
+}
+
+function findLongWeekends(state){
+  const results = [];
+  const seen = new Set();
+  let d = new Date(THIS_YEAR,0,1);
+  const end = new Date(THIS_YEAR,11,31);
+
+  while(d<=end){
+    // Only start scanning on Fridays or Saturdays (or Thurs for Fri–Sat states) or on a holiday that could extend
+    if(isPotentialStart(d, state)){
+      const r = growRangeFrom(d, state);
+      if(r.length >= 3){
+        const key = r.start.toISOString().slice(0,10)+"_"+r.end.toISOString().slice(0,10);
+        if(!seen.has(key)){
+          seen.add(key);
+          results.push(r);
+          // Jump past this block
+          d = new Date(r.end.getFullYear(), r.end.getMonth(), r.end.getDate()+1);
+          continue;
+        }
+      }
+    }
+    d = new Date(d.getFullYear(), d.getMonth(), d.getDate()+1);
+  }
+  return results;
+}
+
+function isPotentialStart(d, state){
+  const dow = d.getDay(); // 0 Sun ... 6 Sat
+  const alt = WEEKENDS.ALT_STATES.has(state);
+  return isOffDay(d,state) || (alt ? dow===4 : dow===5); // Thu for alt, Fri for default
+}
+
+function growRangeFrom(start, state){
+  // Expand contiguous off-days by allowing optional 1 bridge weekday if holidays wrap
+  let end = new Date(start);
+  let length = 1;
+  let workdays = 0;
+
+  function nextDay(dt){ return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()+1); }
+
+  // move backwards 1 day if previous day is off (to catch Fri holiday leading into weekend)
+  let s = new Date(start);
+  while(true){
+    const prev = new Date(s.getFullYear(), s.getMonth(), s.getDate()-1);
+    if(isOffDay(prev,state)){ s = prev; } else { break; }
+  }
+
+  // move forward
+  let e = new Date(s);
+  let bridges = 0;
+  while(true){
+    const off = isOffDay(e,state);
+    if(!off){
+      // allow one bridge day max to still count as "long weekend"
+      if(bridges<1){
+        bridges++;
+        workdays++;
+      }else{
+        break;
+      }
+    }
+    const nxt = nextDay(e);
+    if(nxt.getFullYear()!==THIS_YEAR) break;
+    e = nxt;
+  }
+
+  length = Math.round((e - s)/86400000) + 1;
+  const reason = bridges ? "with 1 bridge day" : "pure weekend/holidays";
+
+  return { start:s, end:new Date(e.getFullYear(), e.getMonth(), e.getDate()), length, workdays, reason };
+}
+
+function fmtRange(a,b){
+  const opts = { month:"short", day:"numeric" };
+  const aS = a.toLocaleDateString("en-MY", opts);
+  const bS = b.toLocaleDateString("en-MY", opts);
+  return aS===bS ? aS : `${aS} – ${bS}`;
+}
+
 /* ---------------- Theme ---------------- */
 function restoreTheme(){
-  const v = localStorage.getItem("theme") || "light";
+  const v = localStorage.getItem("theme") || "dark"; // default to dark to match screenshot vibe
   document.documentElement.setAttribute("data-theme", v);
   document.getElementById("themeToggle").textContent = (v==="dark" ? "🌞" : "🌙");
 }
@@ -186,17 +326,7 @@ function toggleTheme(){
   document.getElementById("themeToggle").textContent = (next==="dark" ? "🌞" : "🌙");
 }
 
-/* ---------------- Trip Planner ---------------- */
-/*
-  APIs used (all free-tier, require keys you can get in minutes):
-  - Flights: Kiwi.com Tequila API (https://tequila.kiwi.com/)
-      * GET /locations/query  (resolve city/airport -> IATA code)
-      * GET /v2/search        (cheapest flights)
-  - Places/Hotels ideas: OpenTripMap (https://opentripmap.io/)
-      * We'll use /places/geoname + /places/radius to suggest top places,
-        and generate hotel booking links (no API) with dates.
-*/
-
+/* ---------------- Trip Planner (same as before) ---------------- */
 function persistKeys(){
   const kiwi = document.getElementById("kiwiKey").value.trim();
   const otm  = document.getElementById("otmKey").value.trim();
@@ -218,13 +348,11 @@ function readForm(){
 function clearResults(){ flightList.innerHTML = ""; placeList.innerHTML = ""; }
 
 async function runPlanner(q){
-  // Resolve IATA codes
   const [fromCode, toCode] = await Promise.all([
     resolveIata(q.origin, q.tequilaKey),
     q.destination ? resolveIata(q.destination, q.tequilaKey) : Promise.resolve(null)
   ]);
 
-  // Flights
   if(q.tequilaKey && fromCode){
     const flights = await searchFlights({ from: fromCode, to: toCode, depart: q.depart, ret: q.ret, currency: q.currency, adults: q.adults, key: q.tequilaKey });
     renderFlights(flights, q.currency);
@@ -232,8 +360,6 @@ async function runPlanner(q){
     flightList.innerHTML = `<li class="card"><div class="meta">Add a Kiwi Tequila API key to see cheap flights.</div></li>`;
   }
 
-  // Places + hotel links (uses OTM to suggest, then links to Booking/Agoda)
-  const destName = q.destination || "popular city";
   if(q.otmKey && (toCode || q.destination)){
     const city = q.destination || "Kuala Lumpur";
     const places = await suggestPlaces(city, q.otmKey);
@@ -243,7 +369,7 @@ async function runPlanner(q){
   }
 }
 
-/* --- Kiwi helpers --- */
+/* Kiwi */
 async function resolveIata(query, key){
   if(!key || !query) return null;
   const url = new URL("https://api.tequila.kiwi.com/locations/query");
@@ -255,7 +381,6 @@ async function resolveIata(query, key){
   const data = await res.json();
   return data?.locations?.[0]?.code || null;
 }
-
 async function searchFlights({ from, to, depart, ret, currency, adults, key }){
   const url = new URL("https://api.tequila.kiwi.com/v2/search");
   url.searchParams.set("fly_from", from);
@@ -266,18 +391,15 @@ async function searchFlights({ from, to, depart, ret, currency, adults, key }){
   if(to) url.searchParams.set("fly_to", to);
   if(depart) url.searchParams.set("date_from", toDMY(depart)), url.searchParams.set("date_to", toDMY(depart));
   if(ret) url.searchParams.set("return_from", toDMY(ret)), url.searchParams.set("return_to", toDMY(ret));
-
   const res = await fetch(url, { headers: { apikey: key }});
   if(!res.ok){ 
     const txt = await res.text().catch(()=>res.statusText);
     flightList.innerHTML = `<li class="card"><div class="meta">Flight search error: ${res.status} ${txt}</div></li>`;
     return [];
   }
-  const data = await res.json();
-  return data?.data || [];
+  const data = await res.json(); return data?.data || [];
 }
 function toDMY(ymd){ const [y,m,d] = ymd.split("-"); return `${d}/${m}/${y}`; }
-
 function renderFlights(items, currency){
   if(!items.length){ flightList.innerHTML = `<li class="card"><div class="meta">No flights found for those dates.</div></li>`; return; }
   const frag = document.createDocumentFragment();
@@ -302,9 +424,8 @@ function renderFlights(items, currency){
   flightList.innerHTML = ""; flightList.appendChild(frag);
 }
 
-/* --- OpenTripMap helpers --- */
+/* OpenTripMap */
 async function suggestPlaces(city, key){
-  // 1) Resolve city to lat/lon
   const geonameUrl = new URL("https://api.opentripmap.com/0.1/en/places/geoname");
   geonameUrl.searchParams.set("name", city);
   geonameUrl.searchParams.set("apikey", key);
@@ -313,9 +434,8 @@ async function suggestPlaces(city, key){
   const geo = await g.json();
   if(!geo?.lat) return [];
 
-  // 2) Fetch notable places around city center
   const radiusUrl = new URL("https://api.opentripmap.com/0.1/en/places/radius");
-  radiusUrl.searchParams.set("radius","20000"); // 20km
+  radiusUrl.searchParams.set("radius","20000");
   radiusUrl.searchParams.set("lon", geo.lon);
   radiusUrl.searchParams.set("lat", geo.lat);
   radiusUrl.searchParams.set("rate","3");
@@ -327,7 +447,6 @@ async function suggestPlaces(city, key){
   const data = await r.json();
   return data?.features || [];
 }
-
 function renderPlaces(features, checkIn, checkOut){
   if(!features.length){
     placeList.innerHTML = `<li class="card"><div class="meta">No place ideas found.</div></li>`;
@@ -337,8 +456,7 @@ function renderPlaces(features, checkIn, checkOut){
   features.forEach(f => {
     const name = f.properties?.name || "Attraction";
     const kinds = f.properties?.kinds?.split(",").slice(0,3).join(" • ") || "";
-    const city = name; // fallback for hotel query
-    // Build simple hotel links (no API, just deep links)
+    const city = name;
     const ci = checkIn || new Date().toISOString().slice(0,10);
     const co = checkOut || new Date(Date.now()+2*86400000).toISOString().slice(0,10);
     const booking = `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(city)}&checkin=${ci}&checkout=${co}`;
