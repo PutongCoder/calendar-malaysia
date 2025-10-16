@@ -1,0 +1,32 @@
+[
+  {
+    "name": "New Year’s Day",
+    "date": "2026-01-01",
+    "regions": ["MY"],
+    "notes": ""
+  },
+  {
+    "name": "Federal Territory Day",
+    "date": "2026-02-01",
+    "regions": ["KUL", "LBN", "PJY"],
+    "notes": ""
+  },
+  {
+    "name": "Labour Day",
+    "date": "2026-05-01",
+    "regions": ["MY"],
+    "notes": ""
+  },
+  {
+    "name": "Malaysia Day",
+    "date": "2026-09-16",
+    "regions": ["MY"],
+    "notes": ""
+  },
+  {
+    "name": "Deepavali",
+    "date": "2026-XX-XX",
+    "regions": ["MY"],
+    "notes": "TBC (subject to moon sighting). Replace with confirmed YYYY-MM-DD."
+  }
+]
