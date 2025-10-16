@@ -42,6 +42,21 @@ select, input[type="date"], input[type="text"], input[type="number"]{
 .lw-item{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--ring);border-radius:12px;padding:10px 12px}
 .lw-item .meta{color:var(--muted)}
 .lw-item .tag{background:var(--accent-2);color:#fff;border-radius:8px;padding:2px 8px;font-weight:700}
+.longweekends summary {
+  cursor: pointer;
+  list-style: none;
+}
+.longweekends summary::-webkit-details-marker {
+  display: none;
+}
+.longweekends summary h3::after {
+  content: " ▼";
+  font-size: .9em;
+  color: var(--muted);
+}
+details[open] summary h3::after {
+  content: " ▲";
+}
 
 /* Calendar grid */
 .calendar{display:grid;gap:20px;padding:10px}
