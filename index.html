@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Malaysia Calendar 2026</title>
-  <meta name="description" content="Malaysia 2026 calendar with state holidays, printable view, ICS export, and a trip planner for cheap flights and hotel ideas." />
+  <meta name="description" content="Malaysia 2026 calendar with state holidays, printable view, ICS export, long-weekend finder, and a trip planner for cheap flights & hotels." />
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="data:,">
 </head>
@@ -20,11 +20,13 @@
         <span>State</span>
         <select id="stateSelect" aria-label="Select state">
           <option value="MY">All Malaysia</option>
-          <option value="JHR">Johor</option><option value="KDH">Kedah</option><option value="KTN">Kelantan</option>
-          <option value="MLK">Melaka</option><option value="NSN">Negeri Sembilan</option><option value="PHG">Pahang</option>
-          <option value="PLS">Perlis</option><option value="PRK">Perak</option><option value="PNG">Penang</option>
-          <option value="SBH">Sabah</option><option value="SWK">Sarawak</option><option value="SGR">Selangor</option>
-          <option value="TRG">Terengganu</option><option value="KUL">Kuala Lumpur (FT)</option>
+          <option value="JHR">Johor</option><option value="KDH">Kedah</option>
+          <option value="KTN">Kelantan</option><option value="TRG">Terengganu</option>
+          <option value="MLK">Melaka</option><option value="NSN">Negeri Sembilan</option>
+          <option value="PHG">Pahang</option><option value="PLS">Perlis</option>
+          <option value="PRK">Perak</option><option value="PNG">Penang</option>
+          <option value="SBH">Sabah</option><option value="SWK">Sarawak</option>
+          <option value="SGR">Selangor</option><option value="KUL">Kuala Lumpur (FT)</option>
           <option value="LBN">Labuan (FT)</option><option value="PJY">Putrajaya (FT)</option>
         </select>
       </label>
@@ -39,6 +41,13 @@
     </p>
   </header>
 
+  <!-- Long-weekend surface -->
+  <section class="container longweekends">
+    <h3>Long Weekends (auto-detected)</h3>
+    <ul id="lwList" class="lw-list"></ul>
+  </section>
+
+  <!-- Calendar -->
   <main class="container">
     <section id="calendar" class="calendar" aria-live="polite"></section>
   </main>
@@ -50,16 +59,14 @@
     <small>© 2026 • Fast, accessible, privacy-friendly.</small>
   </footer>
 
-  <!-- Month/Day templates -->
+  <!-- Templates -->
   <template id="monthTemplate">
     <section class="month" aria-label="">
-      <header class="month-header">
-        <h2></h2>
-      </header>
+      <header class="month-header"><h2></h2></header>
       <div class="dow">
         <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
       </div>
-      <div class="grid grid-days"></div>
+      <div class="grid-days"></div>
     </section>
   </template>
 
@@ -102,9 +109,7 @@
         <div class="row">
           <div class="field">
             <label>Currency</label>
-            <select id="currency">
-              <option>MYR</option><option>USD</option><option>SGD</option><option>EUR</option>
-            </select>
+            <select id="currency"><option>MYR</option><option>USD</option><option>SGD</option><option>EUR</option></select>
           </div>
           <div class="field">
             <label>Adults</label>
