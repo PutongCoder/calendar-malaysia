@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Malaysia Calendar 2026</title>
+  <meta name="description" content="Malaysia 2026 calendar with state filters, public holidays, and ICS export." />
+  <link rel="preload" href="styles.css" as="style" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <header class="site-header">
+    <h1>Malaysia Calendar <span>2026</span></h1>
+    <div class="controls">
+      <label>
+        State:
+        <select id="stateSelect" aria-label="Select state">
+          <option value="MY">All Malaysia</option>
+          <option value="JHR">Johor</option>
+          <option value="KDH">Kedah</option>
+          <option value="KTN">Kelantan</option>
+          <option value="MLK">Melaka</option>
+          <option value="NSN">Negeri Sembilan</option>
+          <option value="PHG">Pahang</option>
+          <option value="PLS">Perlis</option>
+          <option value="PRK">Perak</option>
+          <option value="PNG">Penang</option>
+          <option value="SBH">Sabah</option>
+          <option value="SWK">Sarawak</option>
+          <option value="SGR">Selangor</option>
+          <option value="TRG">Terengganu</option>
+          <option value="KUL">Kuala Lumpur (FT)</option>
+          <option value="LBN">Labuan (FT)</option>
+          <option value="PJY">Putrajaya (FT)</option>
+        </select>
+      </label>
+
+      <button id="todayBtn" type="button" class="ghost">Jump to current month</button>
+      <button id="icsBtn" type="button">Download .ics (holidays)</button>
+    </div>
+    <p class="disclaimer">
+      Heads-up: Islamic and some state holidays are confirmed close to the date. Load final dates into the JSON and everything updates automatically.
+    </p>
+  </header>
+
+  <main id="calendar" class="calendar" aria-live="polite"></main>
+
+  <footer class="site-footer">
+    <div>
+      <button id="printBtn" type="button" class="ghost">Print / Save as PDF</button>
+    </div>
+    <small>© 2026 • Built for fast sharing. No cookies, no trackers.</small>
+  </footer>
+
+  <template id="monthTemplate">
+    <section class="month" aria-label="">
+      <header class="month-header">
+        <h2></h2>
+      </header>
+      <div class="grid grid--dow" aria-hidden="true">
+        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+      </div>
+      <div class="grid grid--days"></div>
+    </section>
+  </template>
+
+  <template id="dayTemplate">
+    <button class="day" type="button" aria-pressed="false">
+      <time></time>
+      <ul class="badges" aria-label="Holiday badges"></ul>
+    </button>
+  </template>
+
+  <template id="badgeTemplate">
+    <li class="badge"></li>
+  </template>
+
+  <script defer src="app.js"></script>
+</body>
+</html>
